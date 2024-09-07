@@ -11,9 +11,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func getAWSConfig(profile, region string) (aws.Config, context.Context) {
+
+	ctx := context.TODO()
+
+	var cfg aws.Config
+	var err error
+
+	if profile == "" {
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	} else {
+		cfg, err = config.LoadDefaultConfig(ctx,
+			config.WithSharedConfigProfile(profile),
+			config.WithRegion(region),
+		)
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	return cfg, ctx
+}
+
 func assumeRole(cmd *cobra.Command, args []string) {
 	roleToBeAssumed := getStringFlag(cmd, "role")
 	sessionName := getStringFlag(cmd, "session-name")
+	profile := getStringFlag(cmd, "profile")
+	region := getStringFlag(cmd, "region")
 	duration, err := cmd.Flags().GetInt32("duration")
 
 	if err != nil {
@@ -31,12 +56,7 @@ func assumeRole(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	ctx := context.TODO()
-
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		panic(err)
-	}
+	cfg, ctx := getAWSConfig(profile, region)
 
 	stsClient := sts.NewFromConfig(cfg)
 	assumeRoleOutput, err := stsClient.AssumeRole(ctx, &sts.AssumeRoleInput{
@@ -73,12 +93,7 @@ func assumeRole(cmd *cobra.Command, args []string) {
 }
 
 func getCallerIdentity(cmd *cobra.Command, args []string) {
-	ctx := context.TODO()
-
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		panic(err)
-	}
+	cfg, ctx := getAWSConfig(getStringFlag(cmd, "profile"), getStringFlag(cmd, "region"))
 
 	stsClient := sts.NewFromConfig(cfg)
 	callerIdentityOutput, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
